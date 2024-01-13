@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 const convertImageFormat = (req: Request, res: Response) => {
   try {
     console.log('req', req);
+
     if (req.headers.fileType === 'image') {
       console.log('valid file type');
     }
