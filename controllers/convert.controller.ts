@@ -1,5 +1,6 @@
-import { Request, Response } from "express";
-import sharp, { FormatEnum } from "sharp";
+import { Request, Response } from "express"
+import sharp, { FormatEnum } from "sharp"
+import archiver from 'archiver'
 
 const convertImageFormat = async (req: Request, res: Response) => {
   try {
@@ -18,31 +19,41 @@ const convertImageFormat = async (req: Request, res: Response) => {
         const convertedFiles: Express.Multer.File[] = []
 
         if (convertFrom && convertTo) {
-          (req.files.forEach(async (inputFile: Express.Multer.File) => {
+          await Promise.all(req.files.map(async (inputFile: Express.Multer.File) => {
             const outputFileName: string = inputFile.originalname.replace(convertFrom, convertTo);
-
-            console.log('convertFrom:', convertFrom);
-            console.log('convertTo:', convertTo);
-            console.log('inputFile.originalname:', inputFile.originalname);
-            console.log('outputFileName:', outputFileName);
-
             try {
               const convertedBuffer = await sharp(inputFile.buffer, {
                 animated: true,
               }).toFormat(convertTo as keyof FormatEnum).toBuffer()
-              console.log('converted Buffer', convertedBuffer);
-
-              return res.status(200).json({
-                status: true,
-                message: totalFiles === convertedFiles.length ? 'Converted all files Successfully' : 'Error converting some files',
-                data: { body: { ...inputFile, buffer: convertedBuffer, originalname: outputFileName } },
-              });
-
               convertedFiles.push({ ...inputFile, buffer: convertedBuffer, originalname: outputFileName });
             } catch (error) {
               console.error('Error converting file:', inputFile.originalname, error);
             }
           }))
+          const zipStream = archiver('zip');
+          res.set({
+            'Content-Type': 'application/zip',
+            'Content-Disposition': `attachment; filename=converted_${mimetype}s.zip`,
+          });
+          zipStream.pipe(res);
+          convertedFiles.forEach((convertedFile: Express.Multer.File) => {
+            zipStream.append(convertedFile.buffer, { name: convertedFile.originalname });
+          });
+          zipStream.finalize()
+
+
+
+          // res.set({
+          //   'Content-Type': 'application/zip',
+          //   'Content-Disposition': 'attachment; filename=converted_images.zip',
+          // });
+
+          // convertedFiles.forEach((convertedFile: Express.Multer.File) => {
+          //   res.write(convertedFile.buffer);
+          // });
+
+          // res.end();
+
           // return res.status(200).json({
           //   status: true,
           //   message: totalFiles === convertedFiles.length ? 'Converted all files Successfully' : 'Error converting some files',

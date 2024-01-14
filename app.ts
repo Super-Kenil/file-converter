@@ -1,20 +1,17 @@
 // main
 import express, { Application } from "express";
-// import cors from "cors";
-import sharp, { Sharp } from 'sharp';
-import { glob } from 'glob';
-
-import convertRouter from './routes/convert.route.js'
+import cors from "cors";
 
 // routes
+import convertRouter from './routes/convert.route.js'
 
 export const app: Application = express();
 
-// var corOptions = {
-//   origin: "*",
-// };
+const corOptions = {
+  origin: "*",
+};
 
-// app.use(cors(corOptions));
+app.use(cors(corOptions));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
