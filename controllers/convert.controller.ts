@@ -1,45 +1,37 @@
 import { Request, Response } from "express"
 import sharp, { FormatEnum } from "sharp"
 import archiver from 'archiver'
+import { zipFiles } from '../helpers/zip-files.js'
 
 const convertImageFormat = async (req: Request, res: Response) => {
   try {
-    console.log('req', req);
 
     if (!req.files) {
-      return res.status(400).json({ message: "No Images provided" });
+      return res.status(400).json({ message: "No Images provided" })
     }
-    const mimetype = (typeof req.headers.convertfrom === 'string') && req.headers.convertfrom.split('/')[0]
+    const mimeType = (typeof req.headers.convertfrom === 'string') && req.headers.convertfrom.split('/')[0]
 
-    if (mimetype === 'image') {
+    if (mimeType === 'image') {
       if (req.files && Array.isArray(req.files)) {
-        const convertFrom = req.headers.convertfrom?.toString().split('/')[1]
-        const convertTo = req.headers.convertto?.toString().split('/')[1]
+        const convertFrom: string | undefined = req.headers.convertfrom?.toString().split('/')[1]
+        const convertTo: string | undefined = req.headers.convertto?.toString().split('/')[1]
+        const isAnimated: boolean = (typeof req.headers.isanimated === 'string') ? JSON.parse(req.headers.isanimated) : false
         const totalFiles = req.files.length
         const convertedFiles: Express.Multer.File[] = []
-
         if (convertFrom && convertTo) {
           await Promise.all(req.files.map(async (inputFile: Express.Multer.File) => {
-            const outputFileName: string = inputFile.originalname.replace(convertFrom, convertTo);
+            const outputFileName: string = inputFile.originalname.replace(convertFrom, convertTo)
             try {
               const convertedBuffer = await sharp(inputFile.buffer, {
-                animated: true,
+                animated: isAnimated,
               }).toFormat(convertTo as keyof FormatEnum).toBuffer()
-              convertedFiles.push({ ...inputFile, buffer: convertedBuffer, originalname: outputFileName });
+              convertedFiles.push({ ...inputFile, buffer: convertedBuffer, originalname: outputFileName })
             } catch (error) {
-              console.error('Error converting file:', inputFile.originalname, error);
+              console.error('Error converting file:', inputFile.originalname, error)
             }
           }))
-          const zipStream = archiver('zip');
-          res.set({
-            'Content-Type': 'application/zip',
-            'Content-Disposition': `attachment; filename=converted_${mimetype}s.zip`,
-          });
-          zipStream.pipe(res);
-          convertedFiles.forEach((convertedFile: Express.Multer.File) => {
-            zipStream.append(convertedFile.buffer, { name: convertedFile.originalname });
-          });
-          zipStream.finalize()
+
+          zipFiles({ res, convertedFiles, mimeType })
 
 
 
@@ -54,11 +46,11 @@ const convertImageFormat = async (req: Request, res: Response) => {
 
           // res.end();
 
-          // return res.status(200).json({
-          //   status: true,
-          //   message: totalFiles === convertedFiles.length ? 'Converted all files Successfully' : 'Error converting some files',
-          //   data: { body: convertedFiles },
-          // });
+          return res.status(200).json({
+            status: true,
+            message: totalFiles === convertedFiles.length ? 'Converted all files Successfully' : 'Error converting some files',
+            data: { body: convertedFiles },
+          })
         }
       }
     }
